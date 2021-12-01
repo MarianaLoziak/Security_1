@@ -28,10 +28,6 @@ public class GeneticAlgorithm {
         System.out.println(currentGeneration.get(0).fitness);
         System.out.println(currentGeneration.get(0).gene);
 
-        /*for (int i = 0; i < populationSize; i++) {currentGeneration.get(0).
-            System.out.println(currentGeneration.get(i).fitness);
-
-        }*/
         System.out.println(currentGeneration.get(0).decrypt(task));
     }
     public static List<Character> createIndividual (){
@@ -41,7 +37,6 @@ public class GeneticAlgorithm {
         return individual;
 
     }
-
 
     public int rouletteSelection(){
         double totalFitness = 0;

@@ -9,7 +9,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
 
-        String filePath = "C:\\Users\\user\\Downloads\\Security_1\\src\\com\\company\\text_1";
+        String filePath = "src/com/company/text_1";
         String text = new String ( Files.readAllBytes( Paths.get(filePath) ) );
 
         char[] textChar = getChar(hexToAscii(text));
