@@ -1,249 +1,307 @@
 import java.util.*;
 
 public class GeneticAlgorithm {
-    List<Population> currentGeneration;
+
+    public List<Gene> currentGeneration;
     public HashMap<String, Double> trigrams;
 
     public String task;
     public int generationSize;
     public int populationSize;
-    public int keyN;
+    public double mutationRate;
+    public int alphabet;
 
     private Random random = new Random();
 
-    public GeneticAlgorithm(HashMap<String, Double> trigrams, String task, int generationSize, int populationSize, int keyN) {
+    public GeneticAlgorithm(HashMap<String, Double> trigrams, String task, int generationSize, int populationSize, double mutationRate, int alphabet) {
         this.trigrams = trigrams;
         this.task = task;
         this.generationSize = generationSize;
         this.populationSize = populationSize;
-        this.keyN = keyN;
+        this.mutationRate = mutationRate;
+        this.alphabet = alphabet;
+        this.currentGeneration = new ArrayList<>(populationSize);
     }
 
-    public void algorithm() {
-        createPopulations();
-        for (int i = 0; i < keyN; i++) {
-            sortAlphabets(currentGeneration.get(i), i);
-        }
+    public String algorithm(){
+        createPopulation();
+        evaluateAndSort();
         for (int i = 0; i < generationSize; i++) {
-            for (int j = 0; j < keyN; j++) {
-                nextGenerationPopulation(j, currentGeneration.get(j));
-                sortAlphabets(currentGeneration.get(j), j);
-            }
-            //Show fitness for this generation
-
-            List<List<Character>> keys = new ArrayList<>(keyN);
-            for (int l = 0; l < keyN; l++) {
-                keys.add(currentGeneration.get(l).alphabets.get(0));
-            }
-            String decryptedLine = decrypt(keys, task);
-            if (i == (generationSize - 1))
-                System.out.println(decryptedLine);
-
-            System.out.println(fitness(getNgramsFreq(3, decryptedLine), trigrams));
+            nextGeneration();
+            evaluateAndSort();
+            System.out.println(currentGeneration.get(0).fitness);
+        }
+        System.out.println(currentGeneration.get(0).fitness);
+        for (int i = 0; i < alphabet; i++) {
+            System.out.println(currentGeneration.get(0).gene[i]);
         }
 
+        return currentGeneration.get(0).decrypt(task);
     }
 
-    public void createPopulations() {
-        List<Population> populations;
-        populations = new ArrayList<>(keyN);
-        for (int i = 0; i < keyN; i++) {
-            Population population = new Population(populationSize);
-            populations.add(population);
+
+    public int rouletteSelection(){
+/*        double totalFitness = 0;
+        for (int i = 0; i < populationSize; i++) {
+            totalFitness+= currentGeneration.get(i).fitness;
         }
-        currentGeneration = populations;
-    }
-
-    public void nextGenerationPopulation(int keyIndex, Population population) {
-        List<List<Character>> alphabets = population.alphabets;
-        List<List<Character>> newAlphabets = new ArrayList<>(alphabets.size());
-
-        for (int i = 0; i < populationSize / 10; i++) {
-            newAlphabets.add(alphabets.get(i));
+        double rand = random.nextDouble(0,totalFitness);
+        double partialSum = 0;
+        for (int i = 0; i < populationSize; i++) {
+            partialSum+= currentGeneration.get(i).fitness;
+            if(partialSum >= rand)
+                return i;
         }
-        for (int i = populationSize / 10; i < populationSize; i += 2) {
-            List<Character> mother = alphabets.get(selectRandom());
-            List<Character> father = alphabets.get(selectRandom());
-            crossoverNew(mother, father, newAlphabets);
-        }
+        return -1;*/
 
-        population.alphabets.clear();
-        population.alphabets = newAlphabets;
-        currentGeneration.set(keyIndex, population);
-    }
-
-    public int selectRandom() {
-        int index = random.nextInt((int) (populationSize * 0.7));
+        int index = random.nextInt(populationSize/3);
         return index;
     }
 
-    public void crossover(List<Character> mother, List<Character> father, List<List<Character>> newAlphabets) {
-        int end = random.nextInt(mother.size()) + 1;
-        int start = random.nextInt(end);
-
-        List<Character> childFirst = new ArrayList<>(mother.size());
-        List<Character> childSecond = new ArrayList<>(mother.size());
-        for (int i = 0; i < mother.size(); i++) {
-            childFirst.add('!');
-            childSecond.add('!');
-        }
-
-        for (int i = start; i < end; i++) {
-            char first = mother.get(i);
-            char second = father.get(i);
-
-            childFirst.set(i, second);
-            childSecond.set(i, first);
-
-        }
-
-        for (int i = 0; i < mother.size(); i++) {
-            if (i == start) {
-                i += end - start;
-                if (i == mother.size())
-                    continue;
-            }
-
-            int ind = i;
-            while (childFirst.contains(mother.get(ind))) {
-                ind = childFirst.indexOf(mother.get(ind));
-            }
-            childFirst.set(i, mother.get(ind));
-
-            ind = i;
-            while (childSecond.contains(father.get(ind))) {
-                ind = childSecond.indexOf(father.get(ind));
-            }
-            childSecond.set(i, father.get(ind));
-
-        }
-
-        newAlphabets.add(childFirst);
-        newAlphabets.add(childSecond);
-
-
-    }
-
-
-    public void sortAlphabets(Population population, int keyIndex) {
-        List<List<Character>> alphabets = population.alphabets;
-        alphabets.sort(Comparator.comparingDouble(alphabet -> evaluateAlphabet(alphabet, keyIndex)));
-        population.alphabets = alphabets;
-    }
-
-
-    public double evaluateAlphabet(List<Character> alphabet, int keyIndex) {
-        double fitness = 0;
-        List<List<Character>> keys = new ArrayList<>(keyN);
-        for (int i = 0; i < keyN; i++) {
-            keys.add(currentGeneration.get(i).alphabets.get(0));
-        }
-        keys.set(keyIndex, alphabet);
-        String decryptedLine = decrypt(keys, task);
-
-        fitness = fitness(getNgramsFreq(3, decryptedLine), trigrams);
-
-        return fitness;
-    }
-
-    public String decrypt(List<List<Character>> keys, String line) {
-        char[] input = line.toCharArray();
-        char[] output = new char[input.length];
-        for (int i = 0; i < input.length; i++) {
-            output[i] = keys.get(i % keyN).get(input[i] - 'A');
-        }
-        String text = new String(output);
-
-        return text;
-    }
-
-    public double fitness(HashMap<String, Double> text_trigrams, HashMap<String, Double> trigrams) {
-        double freq;
-        double freqEng;
-        double score = 0;
-        for (String key : text_trigrams.keySet()) {
-            freq = text_trigrams.get(key);
-            freqEng = trigrams.containsKey(key) ? trigrams.get(key) : 0;
-            score += freq - freqEng;
-        }
-
-        return score;
-    }
-
-    public HashMap<String, Double> getNgramsFreq(int n, String text) {
-        HashMap<String, Double> ngrams = new HashMap<>();
-        int count = 0;
-        for (int i = 0; i < text.length() - n + 1; i++) {
-            String ngram = text.substring(i, i + n);
-            ngrams.put(ngram, ngrams.containsKey(ngram) ? ngrams.get(ngram) + 1 : 1);
-            count++;
-        }
-
-        for (String key : ngrams.keySet()) {
-            ngrams.put(key, ngrams.get(key) / count);
+    public HashMap<String, Integer> getNgram(int n, String text){
+        HashMap<String, Integer> ngrams = new HashMap<>();
+        for (int i = 0; i < text.length()-n+1; i++) {
+            String trigram = text.substring(i, i+n);
+            ngrams.put(trigram, ngrams.containsKey(trigram)?ngrams.get(trigram)+1:1);
         }
 
         return ngrams;
     }
 
-
-    public List<Character> getRandomChars() {
-        int r = random.nextInt(26) + 1;
-        List<Character> list = Population.createIndividual();
-        List<Character> result = new ArrayList<>();
-        for (int i = 0; i < r; i++) {
-            result.add(list.get(i));
-        }
-        return result;
-    }
-
-    public List<Character> getAnotherChars(List<Character> chars) {
-        List<Character> alphabet = Population.createIndividual();
-        List<Character> list = new ArrayList<>();
-        for (char c : alphabet) {
-            if (!chars.contains(c))
-                list.add(c);
-        }
-        return list;
-    }
-
-    public List<Character> cross(List<Character> alphabet1, List<Character> alphabet2, List<Character> letters) {
-        List<Character> child = new ArrayList<>(alphabet1);
-        List<Character> temp = new ArrayList<>();
-        for (char c : alphabet2) {
-            if (!letters.contains(c))
-                temp.add(c);
-        }
-        int counter = 0;
-
-        for (int i = 0; i < alphabet1.size(); i++) {
-            if (letters.contains(alphabet1.get(i))) continue;
-            child.set(i, temp.get(counter));
-            counter++;
+    public HashMap<String, Double> getNgramsFreq(int n, String text){
+        HashMap<String, Double> ngrams = new HashMap<>();
+        int count = 0;
+        for (int i = 0; i < text.length()-n+1; i++) {
+            String ngram = text.substring(i, i+n);
+            ngrams.put(ngram, ngrams.containsKey(ngram)?ngrams.get(ngram)+1:1);
+            count++;
         }
 
-        return child;
-    }
-
-    public void crossoverNew(List<Character> mother, List<Character> father, List<List<Character>> newAlphabets) {
-        List<Character> letters1 = getRandomChars();
-        List<Character> letters2 = getAnotherChars(letters1);
-
-        List<Character> childFirst = cross(mother, father, letters1);
-        List<Character> childSecond = cross(mother, father, letters2);
-
-        newAlphabets.add(mutation(childFirst));
-        newAlphabets.add(mutation(childSecond));
-    }
-
-    public List<Character> mutation(List<Character> child) {
-        List<Character> alphabet = child;
-        if (random.nextDouble() < 0.5) {
-            Collections.swap(alphabet, random.nextInt(alphabet.size()), random.nextInt(alphabet.size()));
+        for (String key: ngrams.keySet()) {
+            ngrams.put(key, ngrams.get(key)/count);
         }
 
-        return alphabet;
+        return ngrams;
     }
 
+    public double fitness( HashMap<String, Double> text_trigrams, HashMap <String, Double> trigrams ){
+        double freq;
+        double freqEng;
+        double score = 0;
+        for (String key: text_trigrams.keySet()) {
+            freq = text_trigrams.get(key);
+            freqEng =trigrams.containsKey(key)? trigrams.get(key):0;
+            score+=freq - freqEng;
+        }
+
+        return score;
+    }
+
+    private String[] devideIntoSubstrings(String line, int key){
+        String[] output = new String[key];
+        for (int i = 0; i < key; i++) {
+            output[i] = new String();
+        }
+        for (int i = 0; i < line.length(); i++) {
+            output[i%key] += line.charAt(i);
+        }
+
+        return output;
+    }
+
+    private double fitnessForSubline(HashMap<String, Double> monograms, String subline){
+        HashMap<String, Double> frequency = countFrequencies(subline);
+        double freq;
+        double freqEng;
+        double score = 0;
+        for (String key: frequency.keySet()){
+            freq = frequency.get(key);
+            freqEng = monograms.get(key);
+            score += Math.abs(freq - freqEng);
+        }
+
+        return score;
+    }
+
+    public HashMap<String, Double> countFrequencies(String line){
+
+        HashMap<String, Double> output = new HashMap<>();
+        for (int i = 0; i < line.length(); i++) {
+            output.put(Character.toString(line.charAt(i)), output.containsKey(line.charAt(i)) ? output.get(line.charAt(i)) + 1 : 1);
+        }
+
+        for (String key: output.keySet()) {
+            output.put(key, output.get(key)/line.length());
+        }
+
+        return output;
+    }
+
+    public void createPopulation(){
+        currentGeneration.clear();
+
+        for (int i = 0; i < populationSize; i++) {
+            Gene gene = new Gene(alphabet, true);
+            currentGeneration.add(gene);
+        }
+    }
+
+    public void evaluateAndSort(){
+        for (int i = 0; i < populationSize; i++) {
+            Gene gene = currentGeneration.get(i);
+            String decrypt = gene.decrypt(task);
+            HashMap<String, Double> decryptMap = getNgramsFreq(3,decrypt);
+
+            currentGeneration.get(i).fitness = fitness(decryptMap, trigrams);
+        }
+
+        Collections.sort(currentGeneration, new Gene.GeneComparer());
+    }
+
+    private double evalFitness(Gene gene){
+        String decrypt = gene.decrypt(task);
+        HashMap<String, Double> decryptMap = getNgramsFreq(3,decrypt);
+
+        return fitness(decryptMap, trigrams);
+    }
+
+    public void nextGeneration(){
+        List<Gene> nextGeneration = new ArrayList<>(populationSize);
+        for (int i = 0; i < populationSize/10; i++) {
+            nextGeneration.add(currentGeneration.get(i));
+        }
+        for (int i = populationSize/10; i < populationSize; i+=2 ){
+            Gene firstParent;
+            Gene secondParent;
+
+            firstParent = currentGeneration.get(rouletteSelection());
+            secondParent = currentGeneration.get(rouletteSelection());
+
+            crossoverM(firstParent, secondParent, nextGeneration);
+        }
+        currentGeneration.clear();
+        currentGeneration = nextGeneration;
+
+    }
+
+    public void crossoverM(Gene mother, Gene father, List<Gene> next){
+        int alphabetN = mother.gene.length;
+        int motherGene;
+        int fatherGene;
+
+        int end = random.nextInt(mother.gene[0].size()) + 1;
+        int start = random.nextInt(end);
+
+        Gene childFirst = new Gene(alphabetN, false);
+        Gene childSecond = new Gene(alphabetN, false);
+
+
+        for (int j = 0; j < alphabetN; j++) {
+            motherGene= j;
+            fatherGene = j;
+            for (int i = start; i < end; i++) {
+                char first = mother.gene[motherGene].get(i);
+                char second = father.gene[fatherGene].get(i);
+
+                childFirst.gene[motherGene].set(i, second);
+                childSecond.gene[fatherGene].set(i, first);
+            }
+
+            for (int i = 0; i < mother.gene[0].size(); i++) {
+                if(i==start){
+                    i+=end-start;
+                    if(i == mother.gene[0].size())
+                        continue;
+                }
+
+                int ind = i;
+                while(childFirst.gene[motherGene].contains(mother.gene[motherGene].get(ind))){
+                    ind = childFirst.gene[motherGene].indexOf(mother.gene[motherGene].get(ind));
+                }
+                childFirst.gene[motherGene].set(i, mother.gene[motherGene].get(ind));
+
+                ind = i;
+                while(childSecond.gene[fatherGene].contains(father.gene[fatherGene].get(ind))){
+                    ind = childSecond.gene[fatherGene].indexOf(father.gene[fatherGene].get(ind));
+                }
+                childSecond.gene[fatherGene].set(i, father.gene[fatherGene].get(ind));
+
+            }
+        }
+
+
+        mutation(childFirst);
+        next.add(childFirst);
+        next.add(childSecond);
+
+    }
+
+    public void mutation(Gene gene) {
+        for (int i = 0; i < gene.gene.length; i++) {
+            for (int j = 0; j < gene.gene[0].size(); j++) {
+                if (random.nextDouble() < mutationRate) {
+                    Collections.swap(gene.gene[i], j, random.nextInt(gene.gene[0].size()));
+                }
+            }
+        }
+
+/*        for (int i = 0; i < alphabet; i++) {
+            int point1 = random.nextInt(gene.gene[i].size());
+            int point2 = random.nextInt(gene.gene[i].size());
+            while(point1==point2){
+                point2 = random.nextInt(gene.gene[i].size());
+            }
+            Collections.swap(gene.gene[i],point1, point2);
+        }*/
+
+    }
+
+    /*public void crossover(Gene mother, Gene father, List<Gene> next) {
+        Random rn = new Random();
+        int end = rn.nextInt(mother.gene.size()) + 1;
+        int start = rn.nextInt(end);
+
+        Gene childFirst = new Gene();
+        Gene childSecond = new Gene();
+
+
+        for (int i = start; i < end; i++) {
+            char first = mother.gene.get(i);
+            char second = father.gene.get(i);
+
+            childFirst.gene.set(i, second);
+            childSecond.gene.set(i, first);
+
+        }
+
+        for (int i = 0; i < mother.gene.size(); i++) {
+            if(i==start){
+                i+=end-start;
+                if(i == mother.gene.size())
+                    continue;
+            }
+
+            int ind = i;
+            while(childFirst.gene.contains(mother.gene.get(ind))){
+                ind = childFirst.gene.indexOf(mother.gene.get(ind));
+            }
+            childFirst.gene.set(i, mother.gene.get(ind));
+
+            ind = i;
+            while(childSecond.gene.contains(father.gene.get(ind))){
+                ind = childSecond.gene.indexOf(father.gene.get(ind));
+            }
+            childSecond.gene.set(i, father.gene.get(ind));
+
+        }
+
+        mutation(childFirst);
+        mutation(childSecond);
+        next.add(childFirst);
+        next.add(childSecond);
+
+    }*/
 
 }
+
+

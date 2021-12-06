@@ -66,15 +66,15 @@ public class GeneticAlgorithm {
     
     public HashMap<String, Double> getNgramsFreq(int n, String text){
         HashMap<String, Double> ngrams = new HashMap<>();
-        int count = 0;
+       // int count = 0;
         for (int i = 0; i < text.length()-n+1; i++) {
             String ngram = text.substring(i, i+n);
             ngrams.put(ngram, ngrams.containsKey(ngram)?ngrams.get(ngram)+1:1);
-            count++;
+            //count++;
         }
 
         for (String key: ngrams.keySet()) {
-            ngrams.put(key, ngrams.get(key)/count);
+            ngrams.put(key, ngrams.get(key)/(text.length()-n+1));
         }
         
         //System.out.println(ngrams);

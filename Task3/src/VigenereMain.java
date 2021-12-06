@@ -17,11 +17,11 @@ public class VigenereMain {
 
 
         String [] arr = devideSubstr(input, 3 );
-        for (String s:
+/*        for (String s:
              arr) {
             //System.out.println("New line");
             //System.out.println(s);
-        }
+        }*/
 
         for (int j = 0; j < 3; j++) {
 
